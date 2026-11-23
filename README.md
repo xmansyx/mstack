@@ -5,6 +5,8 @@ up so anyone can use them. They work in Claude Code and Codex. Some use
 [T3 Code](https://github.com/pingdotgg/t3code) features when they are available
 and fall back to native tools when they are not.
 
+![A scroll through the explainer page review-stack wrote for a made-up three-PR stack](docs/review-stack-tour.gif)
+
 ## Skills
 
 | Skill | Say | What it does |
@@ -26,6 +28,18 @@ Some skills call others. Install the ones they need too:
 - `submit` uses `merge-conflicts` and `verify-ui`.
 - `pr-comments-walkthrough` uses `submit`.
 - `starting-features` uses `submit`, `verify-ui` and `review-stack`.
+
+## What a review looks like
+
+`review-stack` gives its verdicts and findings in chat. For a stack it also writes
+a local page explaining what the stack builds: the story, the architecture, the
+data model, the rollout order and the decisions. Each drawn claim cites the line
+it came from, and each finding is marked on the diagram step where it happens.
+
+![Sequence diagram with findings F1 and F2 marked on the steps where they occur](docs/review-stack-findings.png)
+
+Both images come from a made-up gift-card stack; the commands under
+[Make them yours](#make-them-yours) build the same page on your machine.
 
 ## Install
 
