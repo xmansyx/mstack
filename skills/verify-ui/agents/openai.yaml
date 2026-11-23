@@ -1,0 +1,4 @@
+interface:
+  display_name: "Verify UI"
+  short_description: "Verify user-visible frontend changes in a real browser"
+  default_prompt: "Use $verify-ui to validate this frontend change across the relevant user flows, states, and viewports, then report concrete evidence."

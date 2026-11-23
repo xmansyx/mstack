@@ -1,0 +1,120 @@
+{
+  "title": "Example · workspace invitations",
+  "summary": "Illustrative compact record with placeholder SHAs. Replace every value with verified review evidence.",
+  "limitations": "Source reading plus the API's invitation tests; the settings screen was not run in a browser.",
+  "story": {
+    "users": "Workspace admins can invite teammates by email; the teammate joins by opening the link and accepting.",
+    "why": "Stated in the issue linked from api #101: admins currently add members by asking support.",
+    "matters": [
+      {"reason": "deploy order", "text": "Deploy the API before the web app: the settings screen calls the new invitation endpoint."},
+      {"reason": "migration", "text": "The unique token index must exist before #102 ships; acceptance looks invitations up by token.",
+       "evidence": ["api-101:src/models/invitation.ts:14-16#token"]},
+      {"reason": "permissions", "finding": "F1", "text": "Accepting the same invitation twice creates two memberships."}
+    ],
+    "deploy": ["Create the invitations.token unique index", "acme/api #101 → #102", "acme/web #55"]
+  },
+  "sections": {
+    "architecture": "The settings screen asks the API to invite an email; the API stores an invitation with a random token and sends the link. Opening the link calls the accept endpoint, which creates the membership.",
+    "data": "A new invitations collection. Memberships gain an optional invitedBy field. Existing memberships are untouched.",
+    "rollout": "Additive. The unique index is created before #102 deploys.",
+    "contracts": "Two new API endpoints; no existing response changes.",
+    "lifecycle": "An invitation is pending, then accepted, revoked or expired after seven days."
+  },
+  "prs": [
+    {"id": "api-101", "repo": "acme/api", "number": 101, "scope": "reviewed", "title": "Add workspace invitations",
+     "role": "Data: the invitation model and the invite endpoint.",
+     "base": "1111111111111111111111111111111111111111", "head": "2222222222222222222222222222222222222222",
+     "spec_verdict": "Met: every acceptance criterion in the issue is implemented in the stack.",
+     "code_verdict": "No findings."},
+    {"id": "api-102", "repo": "acme/api", "number": 102, "scope": "reviewed", "title": "Accept workspace invitations",
+     "role": "Behaviour: acceptance creates the membership.",
+     "base": "2222222222222222222222222222222222222222", "head": "3333333333333333333333333333333333333333",
+     "spec_verdict": "Met.", "code_verdict": "Needs changes: 1 High."},
+    {"id": "web-55", "repo": "acme/web", "number": 55, "scope": "reviewed", "title": "Invite teammates from settings",
+     "role": "Consumer: the settings invite form.",
+     "base": "4444444444444444444444444444444444444444", "head": "5555555555555555555555555555555555555555",
+     "spec_verdict": "Met.", "code_verdict": "No findings."}
+  ],
+  "dependencies": [
+    {"chain": ["api-101", "api-102"], "label": "parent of",
+     "evidence": [{"kind": "command", "label": "stack ancestry", "detail": "resolve_stack.py: each base is the previous PR's head."}]},
+    {"from": "web-55", "to": "api-101", "label": "calls the invite endpoint added by",
+     "evidence": ["web-55:src/api/invitations.ts:8-15#/invitations"]}
+  ],
+  "visuals": [
+    {"id": "arch", "kind": "graph", "section": "architecture", "prs": ["api-102"],
+     "title": "Who talks to whom", "caption": "The settings screen creates invitations; the link accepts them.",
+     "nodes": [
+       {"id": "admin", "label": "Workspace admin", "shape": "actor"},
+       {"id": "settings", "label": "Invite form", "status": "new", "pr": "web-55", "src": "src/pages/settings/Members.tsx:40"},
+       {"id": "invite", "label": "POST /invitations", "status": "new", "src": "api-101:src/routes/invitations.ts:12#/invitations"},
+       {"id": "invitations", "label": "invitations", "shape": "store", "status": "new", "src": "api-101:src/models/invitation.ts:1-20"},
+       {"id": "mailer", "label": "Email provider", "shape": "external"},
+       {"id": "accept", "label": "Accept endpoint", "status": "new", "src": "src/invitations/accept.ts:10-32#accept"},
+       {"id": "memberships", "label": "memberships", "shape": "store", "status": "changed", "src": "src/models/membership.ts:9"}],
+     "edges": [{"from": "admin", "to": "settings", "label": "invites"}, {"from": "settings", "to": "invite"},
+               {"from": "invite", "to": "invitations", "label": "stores token"},
+               {"from": "invite", "to": "mailer", "label": "sends link", "dashed": true},
+               {"from": "accept", "to": "memberships", "label": "adds member", "tone": "affected",
+                "src": "src/invitations/accept.ts:20-26#status"}]},
+    {"id": "accept-seq", "kind": "sequence", "section": "architecture", "prs": ["api-102"],
+     "title": "Accepting an invitation", "caption": "Step 3 is where a second accept slips through (F1).",
+     "participants": [{"id": "teammate", "label": "Invited teammate", "shape": "actor"},
+                      {"id": "server", "label": "Accept endpoint", "status": "new", "src": "src/routes/invitations.ts:30"},
+                      {"id": "db", "label": "Database", "shape": "store"}],
+     "messages": [{"from": "teammate", "to": "server", "label": "open link with token", "src": "src/routes/invitations.ts:30-33"},
+                  {"from": "server", "to": "db", "label": "find pending invitation by token", "src": "src/invitations/accept.ts:12#findOne"},
+                  {"id": "join", "from": "server", "to": "db", "label": "create membership, mark accepted", "tone": "affected",
+                   "src": "src/invitations/accept.ts:20-26#status"},
+                  {"from": "server", "to": "teammate", "label": "redirect to workspace", "reply": true, "src": "src/routes/invitations.ts:35"}]},
+    {"id": "data-model", "kind": "schema", "section": "data", "prs": ["api-101"],
+     "title": "One new collection, one new field", "caption": "Only changed fields are shown.",
+     "entities": [{"id": "invitations", "label": "invitations", "status": "new", "src": "src/models/invitation.ts:1-20#Invitation",
+                   "fields": [{"name": "email", "type": "string", "status": "added", "src": "src/models/invitation.ts:5"},
+                              {"name": "token", "type": "string", "status": "added", "index": "token_1 (unique)",
+                               "src": "src/models/invitation.ts:14"},
+                              {"name": "status", "type": "pending | accepted | revoked", "status": "added", "default": "pending",
+                               "src": "src/models/invitation.ts:8"}]},
+                  {"id": "memberships", "label": "memberships", "status": "changed", "src": "src/models/membership.ts:1-12",
+                   "fields": [{"name": "invitedBy", "type": "ObjectId, optional", "status": "added", "src": "src/models/membership.ts:9"}]}],
+     "relations": [{"from": "memberships", "to": "invitations", "label": "created from"}]},
+    {"id": "rollout-plan", "kind": "timeline", "section": "rollout", "prs": ["api-101"],
+     "title": "Rollout order", "caption": "API first; the index before #102.",
+     "lanes": [{"id": "db", "label": "Production DB"}, {"id": "api", "label": "acme/api"}, {"id": "web", "label": "acme/web"}],
+     "steps": [{"lane": "db", "kind": "index", "title": "Create invitations.token unique", "reversible": true, "src": "src/models/invitation.ts:16#token"},
+               {"lane": "api", "kind": "deploy", "title": "#101 → #102", "src": "api-102:src/invitations/accept.ts:10"},
+               {"lane": "web", "kind": "deploy", "title": "#55", "src": "web-55:src/pages/settings/Members.tsx:40"}]},
+    {"id": "api", "kind": "table", "section": "contracts", "prs": ["api-101"],
+     "title": "Contract changes", "caption": "Both changes are additive.",
+     "columns": ["Surface", "Change", "Impact", "Consumers"],
+     "rows": [{"id": "invite-endpoint", "cells": ["POST /invitations", "new endpoint", "additive", "settings invite form"],
+               "tone": "new", "src": "src/routes/invitations.ts:12-28"},
+              {"cells": ["POST /invitations/:token/accept", "new endpoint", "additive", "invitation email link"],
+               "pr": "api-102", "src": "src/routes/invitations.ts:30"}]}
+  ],
+  "decisions": [
+    {"id": "D1", "title": "Invitations expire after seven days", "basis": "stated",
+     "why": "A forwarded or leaked link should not grant access indefinitely.",
+     "alternatives": "Links that never expire were rejected in the issue.",
+     "evidence": [{"kind": "requirement", "label": "issue, Decisions", "detail": "Invitation links expire after seven days."}]}
+  ],
+  "findings": [
+    {"id": "F1", "pr": "api-102", "severity": "High", "title": "Accepting twice creates two memberships",
+     "explanation": "Acceptance reads a pending invitation, then creates the membership and marks it accepted without checking it was still pending.",
+     "impact": "A double click or two open tabs add the same person twice, and the member count and seat billing drift.",
+     "scenario": "The teammate clicks Accept in two tabs within a second: both requests read status pending, both create a membership.",
+     "fix": "Claim the invitation with one conditional update: updateOne({ token, status: 'pending' }, { $set: { status: 'accepted' } }) and create the membership only when it modified a document.",
+     "evidence": ["src/invitations/accept.ts:20-26#status"], "at": ["accept-seq/join"]}
+  ],
+  "requirements": [
+    {"id": "S1", "pr": "api-102", "status": "met", "text": "An invited teammate joins the workspace by accepting the emailed link.",
+     "assessment": "Acceptance creates the membership; F1 covers the concurrent second accept.",
+     "evidence": [{"kind": "requirement", "label": "issue, acceptance 2", "detail": "\"Opening the link and accepting adds the teammate to the workspace.\""},
+                  "src/invitations/accept.ts:20-26"]}
+  ],
+  "checks": [
+    {"pr": "api-102", "label": "Invitation tests", "status": "passed", "result": "npm test -- invitations → 9 passed.",
+     "evidence": [{"kind": "command", "label": "npm test -- invitations", "detail": "npm test -- invitations → 9 passed, 0 failed."}]}
+  ],
+  "dropped": []
+}

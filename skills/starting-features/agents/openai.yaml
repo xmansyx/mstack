@@ -1,0 +1,4 @@
+interface:
+  display_name: "Starting Features"
+  short_description: "Discover and slice features before coding"
+  default_prompt: "Use $starting-features to discover this feature and define its simplest reviewable delivery shape."

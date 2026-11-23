@@ -1,0 +1,4 @@
+interface:
+  display_name: "Review Stack"
+  short_description: "Review PR stacks with verified local HTML reports"
+  default_prompt: "Use $review-stack to review these PRs and open a local HTML report with verified findings, stack context, and verification gaps."

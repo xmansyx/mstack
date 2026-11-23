@@ -1,0 +1,4 @@
+interface:
+  display_name: "Submit"
+  short_description: "Submit GitHub stacks with clear PR descriptions"
+  default_prompt: "Use $submit to prepare or update this stack with gh stack, check each PR description against its diff, and return GitHub links."
